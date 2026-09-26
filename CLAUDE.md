@@ -19,7 +19,7 @@ Run through this list. The maintainer will ask for everything in it on every iss
 
 **Required (issues):**
 - Plugin version (Settings → Community plugins → Claude Sidebar - or read `manifest.json`)
-- Install method (BRAT / manual / Obsidian community store)
+- Install method (Obsidian community store / manual / BRAT)
 - CLI backend and version (`claude --version` or equivalent for your backend)
 - Obsidian version + installer version (Settings → About - both numbers)
 - OS and how Obsidian was installed
@@ -54,7 +54,7 @@ If you don't have a fix, open an issue at https://github.com/derek-larson14/obsi
 
 The fast loop: edit `main.js` in your vault, reload Obsidian (`Cmd-R` on Mac, `Ctrl-R` on Windows/Linux), confirm the fix, copy to a fork, open a PR against `main` (the agent can help with much of this).
 
-If you installed via BRAT, disable auto-update for this plugin while you iterate - BRAT will overwrite your edits.
+Don't update the plugin while you iterate - an update from the community store (or BRAT's auto-update, if you use it) overwrites your edits.
 
 If you're going to iterate often, symlink your fork into a vault to skip the copy step:
 
@@ -157,7 +157,7 @@ Mobile is a separate plugin: https://github.com/derek-larson14/claude-anywhere.
 
 ## After you submit
 
-Once a PR is in, the maintainer will take a look, leave comments, and merge or push back. Iteration is normal - if a fix lands but doesn't fully resolve the bug, just say so and keep going. After merge, the maintainer tags a release; BRAT users update once the tag is up.
+Once a PR is in, the maintainer will take a look, leave comments, and merge or push back. Iteration is normal - if a fix lands but doesn't fully resolve the bug, just say so and keep going. After merge, the maintainer tags a release, and the update reaches users once the tag is up.
 
 ## Maintainer notes — releases
 
