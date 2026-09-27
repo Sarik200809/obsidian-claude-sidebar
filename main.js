@@ -6814,6 +6814,11 @@ function findCliBinary(binary, pathStr, extraDirs) {
   }
   return null;
 }
+// Pasted images are written to os.tmpdir() and then read by the agent from the path we
+// type into the terminal, so they can't be deleted once the paste returns. Prefix is
+// shared by saveImageToTemp (writer) and the sweep on load (reaper) so they can't drift.
+var PASTE_TMP_PREFIX = "claude_paste_";
+var PASTE_TMP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 var TerminalView = class extends import_obsidian.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -7336,7 +7341,7 @@ var TerminalView = class extends import_obsidian.ItemView {
   async saveImageToTemp(blob) {
     const os = require("os");
     const ext = blob.type.split("/")[1] || "png";
-    const filename = `claude_paste_${Date.now()}.${ext}`;
+    const filename = `${PASTE_TMP_PREFIX}${Date.now()}.${ext}`;
     const tempPath = path.join(os.tmpdir(), filename);
     const buffer = Buffer.from(await blob.arrayBuffer());
     fs.writeFileSync(tempPath, buffer);
@@ -8798,6 +8803,38 @@ var VaultTerminalPlugin = class extends import_obsidian.Plugin {
       })
     );
     this.addSettingTab(new ClaudeSidebarSettingsTab(this.app, this));
+    this.sweepPasteTempFiles();
+  }
+  // Reap pasted images left in os.tmpdir(). Only files older than
+  // PASTE_TMP_MAX_AGE_MS are removed, so a session that's been open for days never
+  // loses an image the agent is still working from. Sweeping on load rather than
+  // tracking paths per-instance also cleans up after a crash, and needs no state.
+  sweepPasteTempFiles() {
+    const os = require("os");
+    const tmpDir = os.tmpdir();
+    const cutoff = Date.now() - PASTE_TMP_MAX_AGE_MS;
+    let entries;
+    try {
+      entries = fs.readdirSync(tmpDir, { withFileTypes: true });
+    } catch (err) {
+      console.error("[Claude Sidebar] Could not read tmpdir to clean up pasted images:", err);
+      return;
+    }
+    let removed = 0;
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.startsWith(PASTE_TMP_PREFIX)) continue;
+      const filePath = path.join(tmpDir, entry.name);
+      try {
+        if (fs.statSync(filePath).mtimeMs >= cutoff) continue;
+        fs.unlinkSync(filePath);
+        removed++;
+      } catch (_) {
+        // Raced with another Obsidian window or the OS's own tmp reaper. Skip it.
+      }
+    }
+    if (removed) {
+      console.log(`[Claude Sidebar] Cleaned up ${removed} pasted image(s) older than 24h in ${tmpDir}`);
+    }
   }
   async toggleFocus() {
     const activeView = this.app.workspace.getActiveViewOfType(TerminalView);
