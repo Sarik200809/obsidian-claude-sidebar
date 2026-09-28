@@ -7374,6 +7374,9 @@ var TerminalView = class extends import_obsidian.ItemView {
   // This is also the only reliable image source on Wayland, where the clipboard is
   // proxied through xdg-desktop-portal and the event may carry no image/* item at all.
   imageInClipboard() {
+    // macOS puts real images in the paste event itself. Asking the system clipboard there
+    // turns a Finder file copy into an image paste instead of the file path.
+    if (process.platform === "darwin") return null;
     try {
       const clipboard = require("electron").clipboard;
       for (const format of clipboard.availableFormats()) {
@@ -7518,6 +7521,20 @@ var TerminalView = class extends import_obsidian.ItemView {
       // Only handle if terminal has focus
       if (!this.containerEl.contains(document.activeElement)) return;
       const items = e.clipboardData?.items;
+      // A file copied in Finder or Explorer arrives as a file item backed by a real path.
+      // Type that path, like a drag-and-drop, instead of copying the bytes to a temp file
+      // (images) or letting the terminal paste the bare filename (everything else).
+      const { webUtils } = require("electron");
+      const paths = [...(items || [])]
+        .filter((item) => item.kind === "file")
+        .map((item) => { try { return webUtils.getPathForFile(item.getAsFile()); } catch (_) { return ""; } })
+        .filter(Boolean);
+      if (paths.length) {
+        e.preventDefault();
+        e.stopPropagation();
+        for (const p of paths) this.proc?.stdin?.write(`"${this.plugin.getPath(p)}" `);
+        return;
+      }
       for (const item of items || []) {
         if (item.type.startsWith("image/")) {
           e.preventDefault();
