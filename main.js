@@ -7363,7 +7363,8 @@ var TerminalView = class extends import_obsidian.ItemView {
   // The image in the system clipboard, as {format, data}, or null if there isn't a
   // usable one. Deliberately synchronous: a caller handling a `paste` event has to
   // preventDefault() before yielding, and readBuffer() is synchronous, so we can read
-  // the bytes and bail on them while the event is still dispatching.
+  // the bytes and bail on them while the event is still dispatching. Adding `async`
+  // here would make every caller see a truthy Promise and block every paste.
   //
   // Every image/* format is tried rather than just the first one advertised, because
   // on macOS availableFormats() lists "image/png" alongside the native "public.png"
@@ -7384,13 +7385,6 @@ var TerminalView = class extends import_obsidian.ItemView {
         const data = clipboard.readBuffer(format);
         if (data && data.length > 0) return { format, data };
       }
-      // macOS names clipboard flavours by UTI ("public.png"), never image/*, so the
-      // loop above never matches there. readImage() goes through the native image
-      // conversion instead of the format-name lookup and does find it. It's empty for
-      // a clipboard with no image, and re-encodes to PNG because the original type
-      // isn't recoverable from a NativeImage - fine, since the agent reads the bytes.
-      const image = clipboard.readImage();
-      if (image && !image.isEmpty()) return { format: "image/png", data: image.toPNG() };
       return null;
     } catch (_) {
       return null;
